@@ -100,11 +100,22 @@ module cpram
 	input  [63:0] data,
 
 	input         rd,
-	output [15:0] q
+	output [15:0] q,
+
+	input         is_sprite_rom
 );
 
 reg [8:0] rdaddress;
 reg [6:0] wraddress;
+
+// SDRAM address reordered to optimize burst reads from sprite ROMS in the MVS
+// mode
+wire [8:0] rdaddress_sprite_rom;
+`ifndef MVS_ARCADE_LOAD
+assign rdaddress_sprite_rom = rdaddress;
+`else
+assign rdaddress_sprite_rom = {rdaddress[8:6], ~rdaddress[1], rdaddress[5:2], ~rdaddress[0]};
+`endif
 
 always @(posedge clock) begin
 	if(wr) wraddress <= wraddress + 1'd1;
@@ -121,7 +132,7 @@ end
 
 altsyncram	altsyncram_component (
 			.address_a (wraddress),
-			.address_b (rdaddress),
+			.address_b (is_sprite_rom ? rdaddress_sprite_rom : rdaddress),
 			.clock0 (clock),
 			.data_a (data),
 			.wren_a (wr),

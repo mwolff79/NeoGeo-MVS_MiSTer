@@ -245,6 +245,17 @@ video_freak video_freak
 // L:	status[12]		CD lid state (DEBUG)
 //  :	status[14]		Manual Reset
 //  :	status[20:15]  OSD options
+//  :   status[21]		bk_load
+//  :   status[22]              BIOS 0=original 1=universe
+//  :   status[24]              wire bk_autosave = status[24];
+//  :   status[28:25]           sound debug
+//  :   status[33:32]		ar
+//  :   status[34]		vcrop_en
+//  :   status[38:35]		vcopt
+//  :   status[40:39]           scale
+//  :   status[47:44]           H-sync adjust
+//  :   status[51:48]           V-sync adjust
+//  :   status[57:62]           sound debug (ADPCMA channels)
 // 0123456789 ABCDEFGHIJKLMNO
 
 // Conditional modification of the CONF strings chaining according to chosen system type
@@ -267,60 +278,98 @@ video_freak video_freak
 localparam CONF_STR = {
 	"NEOGEO;;",
 	"-;",
-	"FS1,*,Load ROM set;",
-	"S1,CUECHD,Load CD Image;",
+
+`ifndef MVS_ARCADE_LOAD
+	"H0FS1,*,Load ROM;",
+`ifdef NGCD_SUPPORT
+	"H1S1,ISOBIN,Load CD Image;",
+`endif
 	"-;",
-	"H3OP,FM,ON,OFF;",
-	"H3OQ,ADPCMA,ON,OFF;",
-	"H3OR,ADPCMB,ON,OFF;",
-	"H3OS,PSG,ON,OFF;",
-	"H3oP,ADPCMA CH 1,ON,OFF;",
-	"H3oQ,ADPCMA CH 2,ON,OFF;",
-	"H3oR,ADPCMA CH 3,ON,OFF;",
-	"H3oS,ADPCMA CH 4,ON,OFF;",
-	"H3oT,ADPCMA CH 5,ON,OFF;",
-	"H3oU,ADPCMA CH 6,ON,OFF;",
-	"H3-;",
-	"O1,System Type,Console(AES),Arcade(MVS);",
-	"OM,BIOS,UniBIOS,Original;",
-	"O3,Video Mode,NTSC,PAL;",
+`endif
+	"D6H2O9,Pause (Stop Mode),Off,On;",
+	"H2-;",
+
+`ifdef NGCD_SUPPORT
+	"O12,System Type,Console(AES),Arcade(MVS),CD,CDZ;",
+`elsif MVS_ARCADE_LOAD
+`else
+	"O12,System Type,Console(AES),Arcade(MVS);"
+`endif
+
+	// Page 1 - System Settings
+`ifndef MVS_ARCADE_LOAD
+	"P1,System Settings;",
+	"P1-;",
+`ifdef NGCD_SUPPORT
+	"P1O12,Select System,AES,MVS,CD,CDZ;",
+	"H1P1OAB,Region,US,EU,JP,AS;",
+	"H1P1OF,CD lid,Opened,Closed;",
+`else
+	"P1O12,Select System,AES,MVS;",
+`endif
+	"P1OM,Select BIOS,UniBIOS,Original;",
+	"P1-;",
+	"H0P1O4,Memory Card,Plugged,Unplugged;",
+	"P1RL,Reload Memory Card;",
+	"D4P1RC,Save Memory Card;",
+	"P1OO,Autosave,OFF,ON;",
+	"P1-;",
+	"P1RE,Reset & Apply;",                            // decouple manual reset from system reset
+`endif
+
+	// Page 2 - HARD DIPS
+	"H2P2,HARD DIP Settings;",
+	"H2P2-;",
+	"H2P2O7,Setting Mode,Off,On;",
+	"H2P2O8,Free Play,Off,On;",
+	"H2P2O9,Stop Mode,Off,On;",
+
+	// Page 3 - Video & Audio Settings
+	"P3,Video & Audio Settings;",
+	"P3-;",
+`ifndef MVS_ARCADE_LOAD
+	"P3O3,Video Mode,NTSC,PAL;",
+`endif
+	"P3OG,Width,320px,304px;",
+	"P3OIK,Scandoubler Fx,None,N/A,CRT 25%,CRT 50%,CRT 75%;",
+	"P3-;",
+	"P3oCF,H-sync Adjust,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+	"P3oGJ,V-sync Adjust,0,1,2,3,4,5,6,7,-8,-7,-6,-5,-4,-3,-2,-1;",
+	"P3-;",
+	"P3o01,Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"d5P3o2,Vertical Crop,Disabled,216p(5x);",
+	"d5P3o36,Crop Offset,0,2,4,8,10,12,-12,-10,-8,-6,-4,-2;",
+	"P3o78,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+	"P3-;",
+	"P3O56,Stereo Mix,none,25%,50%,100%;",
+	"P3-;",
+
+`ifdef SOUND_DEBUG
+	// Page 4 - Hidden sound debug menu
+	"P4H3,Sound Debug;",
+	"P4H3OP,FM,ON,OFF;",
+	"P4H3OQ,ADPCMA,ON,OFF;",
+	"P4H3OR,ADPCMB,ON,OFF;",
+	"P4H3OS,PSG,ON,OFF;",
+	"P4H3oP,ADPCMA CH 1,ON,OFF;",
+	"P4H3oQ,ADPCMA CH 2,ON,OFF;",
+	"P4H3oR,ADPCMA CH 3,ON,OFF;",
+	"P4H3oS,ADPCMA CH 4,ON,OFF;",
+	"P4H3oT,ADPCMA CH 5,ON,OFF;",
+	"P4H3oU,ADPCMA CH 6,ON,OFF;",
+	"P4H3-;",
+`endif
+
 	"-;",
 	"o9A,Input,Joystick or Spinner,Joystick,Spinner,Mouse(Irr.Maze);",
+	"H2oB,Pause Mode,OSD,DIP;",
 	"-;",
-	"H0O4,Memory Card,Plugged,Unplugged;",
-	"RL,Reload Memory Card;",
-	"D4RC,Save Memory Card;",
-	"OO,Autosave,OFF,ON;",
-	"-;",
-	"O2,CD Type,CD,CDZ;",
-	"OTU,CD Speed,1x,2x,3x,4x;",
-	"OAB,CD Region,US,EU,JP,AS;",
-	"OF,CD lid,Closed,Opened;",
-	"H2-;",
-	"H2O7,[DIP] Settings,OFF,ON;",
-	"H2O8,[DIP] Freeplay,OFF,ON;",
-	"H2O9,[DIP] Freeze,OFF,ON;",
-	"-;",
-	"P1,Audio & Video;",
-	"P1-;",
-	"P1OG,Width,320px,304px;",
-	"P1o01,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"P1OIK,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-	"P1-;",
-	"d5P1o2,Vertical Crop,Disabled,216p(5x);",
-	"d5P1o36,Crop Offset,0,2,4,8,10,12,-12,-10,-8,-6,-4,-2;",
-	"P1o78,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
-	"P1-;",
-	"P1O56,Stereo Mix,none,25%,50%,100%;",
-	"P1-;",
-	"-;",
-	"RE,Reset & apply;",  // decouple manual reset from system reset 
-	"J1,A,B,C,D,Start,Select,Coin,ABC;",	// ABC is a special key to press A+B+C at once, useful for keyboards that don't allow more than 2 keypresses at once
-	"jn,A,B,X,Y,Start,Select,L,R;",	        // name mapping 
+	"RE,Reset & Apply;",                    // decouple manual reset from system reset
+	"J1,A,B,C,D,Start,Select,Coin,ABC;",    // ABC is a special key to press A+B+C at once, useful for keyboards that don't allow more than 2 keypresses at once and to access UniBIOS
+	"jn,A,B,X,Y,Start,Select,L,R;",	        // name mapping
 	"jp,B,A,D,C,Start,Select,L,R;",	        // positional mapping consistent with NeoGeoCD controller
-	"V,v",`BUILD_DATE						// 
+	"V,v",`BUILD_DATE
 };
-
 
 ////////////////////   CLOCKS   ///////////////////
 
@@ -407,7 +456,7 @@ end
 // MiSTer OSD jumps around. Provide an indication for devs that a watchdog reset happened ?
 
 reg [14:0] TRASH_ADDR;
-reg SYSTEM_TYPE, SYSTEM_CD_TYPE;
+reg SYSTEM_TYPE; //, SYSTEM_CD_TYPE;
 
 reg nRESET;
 always @(posedge CLK_48M) begin
@@ -419,18 +468,26 @@ always @(posedge CLK_48M) begin
 
 	if (status[0] | status[14] | buttons[1] | bk_loading | RESET) begin
 		TRASH_ADDR <= 0;
+`ifndef MVS_ARCADE_LOAD
 		SYSTEM_TYPE <= status[1];	// Latch the system type on reset
-		SYSTEM_CD_TYPE <= status[2];
+`else
+		SYSTEM_TYPE <= 'd1;
+`endif
+//		SYSTEM_CD_TYPE <= status[2];
 	end
 end
 
 reg osd_btn = 0;
+
+`ifndef MVS_ARCADE_LOAD
 always @(posedge CLK_48M) begin
 	integer timeout = 0;
 	reg     last_rst = 0;
 
-	if (RESET) last_rst = 0;
-	if (status[0]) last_rst = 1;
+	if (RESET)
+		last_rst = 0;
+	if (status[0])
+		last_rst = 1;
 
 	if (last_rst & ~status[0]) begin
 		osd_btn <= 0;
@@ -440,6 +497,7 @@ always @(posedge CLK_48M) begin
 		end
 	end
 end
+`endif
 
 //////////////////   HPS I/O   ///////////////////
 
@@ -480,7 +538,14 @@ wire SYSTEM_CDZ = SYSTEM_CDx & SYSTEM_CD_TYPE;
 wire [15:0] sdram_sz;
 wire [21:0] gamma_bus;
 
-hps_io #(.CONF_STR(CONF_STR), .WIDE(1), .VDNUM(2)) hps_io
+// 8-bit ioctl mode, used only for FIX ROMs in MVS Arcade load
+`ifdef MVS_ARCADE_LOAD
+localparam WIDE_IOCTL = 0;
+`else
+localparam WIDE_IOCTL = 1;
+`endif
+
+hps_io #(.CONF_STR(CONF_STR), .WIDE(WIDE_IOCTL), .VDNUM(2)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
@@ -493,7 +558,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1), .VDNUM(2)) hps_io
 	.buttons(buttons),
 	.ps2_key(ps2_key),
 
-	.status(status),				// status read (32 bits)
+	.status(status),				// status read (64 bits)
 	.status_menumask({status[22], 9'd0, en216p, bk_autosave | ~bk_pending, ~dbg_menu,~SYSTEM_MVS,1'b0,SYSTEM_CDx}),
 
 	.RTC(rtc),
@@ -979,16 +1044,34 @@ localparam P1ROM_A_OFFSET = 27'h0200000; // P1+:        $0200000~...
 localparam P1ROM_B_OFFSET = 27'h0280000; // P1:         $0280000~$02FFFFF (secondary 512KB)
 localparam P2ROM_OFFSET   = 27'h0300000; // P2+:        $0300000~...
 
+// FIX ROMs reordering to optimize burst reads
+
+// forward 16,24,0,8...
+// inverted 2,6,10,14,...
+
+//        In:  FEDCBA9876543210
+//        Out: FEDCBA9876510432
+
+`ifdef MVS_ARCADE_LOAD
+wire [18:0] SROM_LOAD_ADDR = {ioctl_addr[18:5],ioctl_addr[2:0],~ioctl_addr[4],ioctl_addr[3]};
+`else
+wire [18:0] SROM_LOAD_ADDR = ioctl_addr[18:0];
+`endif
+
 wire [26:0] ioctl_addr_offset =
-	(ioctl_index == INDEX_SPROM)   ?	{SPROM_OFFSET[26:19]  , ioctl_addr[18:0]} : // System ROM: $0000000~$007FFFF
-	(ioctl_index == INDEX_SFIXROM) ? {SFIXROM_OFFSET[26:17], ioctl_addr[16:0]} : // SFIX:       $0020000~$003FFFF (in sys ROM)
-	(ioctl_index == INDEX_S1ROM)   ?	{S1ROM_OFFSET[26:19]  , ioctl_addr[18:0]} : // S1:         $0080000~$00FFFFF
-	(ioctl_index == INDEX_P1ROM_A) ?  P1ROM_A_OFFSET       + ioctl_addr        : // P1+:        $0200000~...
-	(ioctl_index == INDEX_P1ROM_B) ? {P1ROM_B_OFFSET[26:19], ioctl_addr[18:0]} : // P1:         $0280000~$02FFFFF (secondary 512KB)
-	(ioctl_index == INDEX_P2ROM)   ?  P2ROM_OFFSET         + ioctl_addr        : // P2+:        $0300000~...
-	(ioctl_index == INDEX_CROM0)   ? {CROM_START, 20'd0}   + ioctl_addr        : // C:          end of P, consolidated CROM
-	(ioctl_index >= INDEX_CROMS)   ? {CROM_START, 20'd0}   + CROM_LOAD_ADDR    : // C*:         end of P
+	(ioctl_index == INDEX_SPROM)   ? {SPROM_OFFSET[26:19]  , ioctl_addr[18:0]}     : // System ROM: $0000000~$007FFFF
+	(ioctl_index == INDEX_SFIXROM) ? {SFIXROM_OFFSET[26:17], SROM_LOAD_ADDR[16:0]} : // SFIX:       $0020000~$003FFFF (in sys ROM)
+	(ioctl_index == INDEX_S1ROM)   ? {S1ROM_OFFSET[26:19]  , SROM_LOAD_ADDR}       : // S1:         $0080000~$00FFFFF
+	(ioctl_index == INDEX_P1ROM_A) ?  P1ROM_A_OFFSET       + ioctl_addr            : // P1+:        $0200000~...
+	(ioctl_index == INDEX_P1ROM_B) ? {P1ROM_B_OFFSET[26:19], ioctl_addr[18:0]}     : // P1:         $0280000~$02FFFFF (secondary 512KB)
+	(ioctl_index == INDEX_P2ROM)   ?  P2ROM_OFFSET         + ioctl_addr            : // P2+:        $0300000~...
+	(ioctl_index == INDEX_CROM0)   ? {CROM_START, 20'd0}   + ioctl_addr            : // C:          end of P, consolidated CROM
+	(ioctl_index >= INDEX_CROMS)   ? {CROM_START, 20'd0}   + CROM_LOAD_ADDR        : // C*:         end of P
 	27'h0100000; // undefined case, use work RAM address to make sure no ROM gets overwritten
+
+
+//wire [26:0] c0rom_load_addr = {ioctl_addr[26:7], ioctl_addr[5:2], ~ioctl_addr[6], ~ioctl_addr[1], 1'b0};
+//(ioctl_index == INDEX_CROM0)   ? {CROM_START, 20'd0}  + c0rom_load_addr    : // C:          end of P, consolidated CROM
 
 reg  [6:0] CROM_START;
 reg [26:0] P2ROM_MASK, CROM_MASK, V1ROM_MASK, V2ROM_MASK, MROM_MASK;
@@ -1012,36 +1095,48 @@ always_ff @(posedge clk_sys) begin
 		end
 	end
 
-	if(ioctl_wr) begin
-			  if(ioctl_index >= INDEX_CROMS)  CROM_MASK  <= CROM_MASK  | CROM_LOAD_ADDR;
+		if(ioctl_wr) begin
+			  if(ioctl_index >= INDEX_CROMS)
+				  CROM_MASK  <= CROM_MASK | CROM_LOAD_ADDR;
 		else if(ioctl_index >= INDEX_VROMS) begin
-			if(~VROM_LOAD_ADDR[24]) 			 V1ROM_MASK <= V1ROM_MASK | VROM_LOAD_ADDR;
-			else  									 V2ROM_MASK <= V2ROM_MASK | VROM_LOAD_ADDR;
-		end
-		else if(ioctl_index == INDEX_CROM0)  CROM_MASK  <= CROM_MASK  | ioctl_addr;
-		else if(ioctl_index == INDEX_M1ROM)  MROM_MASK  <= MROM_MASK  | ioctl_addr;
+			if(~VROM_LOAD_ADDR[24])
+				V1ROM_MASK <= V1ROM_MASK | VROM_LOAD_ADDR;
+			else
+				V2ROM_MASK <= V2ROM_MASK | VROM_LOAD_ADDR;
+		end else if(ioctl_index == INDEX_CROM0)
+			CROM_MASK  <= CROM_MASK  | ioctl_addr;
+		else if(ioctl_index == INDEX_M1ROM)
+			MROM_MASK  <= MROM_MASK  | ioctl_addr;
 		else if(ioctl_index == INDEX_P2ROM || ioctl_index == INDEX_P1ROM_A) begin
-			if(ioctl_addr_offset >= P2ROM_OFFSET) P2ROM_MASK <= P2ROM_MASK | (ioctl_addr_offset - P2ROM_OFFSET);
+			if(ioctl_addr_offset >= P2ROM_OFFSET)
+				P2ROM_MASK <= P2ROM_MASK | (ioctl_addr_offset - P2ROM_OFFSET);
 		end
-		
+
 		if(ioctl_index == INDEX_MEMCP && ioctl_addr == 6 && cp_op) begin
 			if(cp_idx >= INDEX_VROMS) begin
-				if(cp_idx < (INDEX_VROMS+32)) V1ROM_MASK <= V1ROM_MASK | (cp_end[23:0]-1'd1);
-				else  								V2ROM_MASK <= V2ROM_MASK | (cp_end[23:0]-1'd1);
+				if(cp_idx < (INDEX_VROMS+32))
+					V1ROM_MASK <= V1ROM_MASK | (cp_end[23:0]-1'd1);
+				else
+					V2ROM_MASK <= V2ROM_MASK | (cp_end[23:0]-1'd1);
 			end
-			else if(cp_idx == INDEX_CROM0)  CROM_MASK  <= CROM_MASK  | (cp_size-1'd1);
-			else if(cp_idx == INDEX_M1ROM)  MROM_MASK  <= MROM_MASK  | (cp_size-1'd1);
+			else if(cp_idx == INDEX_CROM0)
+				CROM_MASK  <= CROM_MASK  | (cp_size-1'd1);
+			else if(cp_idx == INDEX_M1ROM)
+				MROM_MASK  <= MROM_MASK  | (cp_size-1'd1);
 			else if(cp_idx == INDEX_P2ROM || cp_idx == INDEX_P1ROM_A) begin
-				if((cp_end-1'd1)>=P2ROM_OFFSET) P2ROM_MASK <= P2ROM_MASK | (cp_end - P2ROM_OFFSET - 1'd1);
+				if((cp_end-1'd1)>=P2ROM_OFFSET)
+					P2ROM_MASK <= P2ROM_MASK | (cp_end - P2ROM_OFFSET - 1'd1);
 			end
 
 			if(cp_idx == INDEX_P2ROM || cp_idx == INDEX_P1ROM_A) begin
-				if(CROM_START < cp_end[26:20]) CROM_START <= cp_end[26:20];
+				if(CROM_START < cp_end[26:20])
+					CROM_START <= cp_end[26:20];
 			end
 		end
 
 		if(old_download && ~ioctl_download && (ioctl_index == INDEX_P2ROM || ioctl_index == INDEX_P1ROM_A)) begin
-			if(CROM_START < ioctl_addr_offset[26:20]) CROM_START <= ioctl_addr_offset[26:20];
+			if(CROM_START < ioctl_addr_offset[26:20])
+				CROM_START <= ioctl_addr_offset[26:20];
 		end
 	end
 
@@ -1053,10 +1148,11 @@ always_ff @(posedge clk_sys) begin
 		P2ROM_MASK <= 0;
 		CROM_START <= 3;
 	end
-	
+
 	old_download <= ioctl_download;
 	if(old_download && ~ioctl_download && (ioctl_index == INDEX_P2ROM || ioctl_index == INDEX_P1ROM_A)) begin
-		if(CROM_START < ioctl_addr_offset[26:20]) CROM_START <= ioctl_addr_offset[26:20];
+		if(CROM_START < ioctl_addr_offset[26:20])
+			CROM_START <= ioctl_addr_offset[26:20];
 	end
 end
 
@@ -1084,7 +1180,7 @@ sdram_mux SDRAM_MUX(
 	.nRESET(nRESET),
 	.nSYSTEM_G(nSYSTEM_G),
 	.SYSTEM_CDx(SYSTEM_CDx),
-	
+
 	.M68K_ADDR(M68K_ADDR),
 	.M68K_DATA(M68K_DATA),
 	.nAS(nAS | (FC1 == FC0)),
@@ -1514,7 +1610,7 @@ zmc2_dot ZMC2DOT(
 		M68K_DATA[5], M68K_DATA[1], M68K_DATA[4], M68K_DATA[0]
 		}),
 	.GAD(GAD_SEC), .GBD(GBD_SEC)
-);	
+);
 
 assign M68K_DATA[7:0] = ((cart_chip == 1) & ~nPORTOEL) ?
 								{GBD_SEC[1], GBD_SEC[0], GBD_SEC[3], GBD_SEC[2],
@@ -1940,7 +2036,8 @@ cpram cpram
 	.data(ddr_cpdout),
 
 	.rd(sdr_cprd),
-	.q(sdr_cpdin)
+	.q(sdr_cpdin),
+	.is_sprite_rom(cp_idx == INDEX_CROM0)
 );
 
 reg         cp_op;
@@ -1970,15 +2067,17 @@ wire memcp_wait = (memcp_req != memcp_ack);
 always @(posedge clk_sys) begin
 	if(ioctl_download && ioctl_index == INDEX_MEMCP) begin
 		if(ioctl_wr) begin
+`ifndef MVS_ARCADE_LOAD
 			case(ioctl_addr[3:0])
 				0: {cp_op,cp_idx} <= {~ioctl_dout[15],ioctl_dout[7:0]};
 				2: cp_size[15:0]  <= ioctl_dout;
 				4: begin
-						cp_size[26:16] <= ioctl_dout[10:0];
-						cp_addr     <= cp_offset;
-						cp_end      <= cp_offset + {ioctl_dout[10:0], cp_size[15:0]};
-					end
-				6: if(ioctl_dout && cp_op) memcp_req <= ~memcp_req;
+					cp_size[26:16] <= ioctl_dout[10:0];
+					cp_addr     <= cp_offset;
+					cp_end      <= cp_offset + {ioctl_dout[10:0], cp_size[15:0]};
+				end
+				6: if(ioctl_dout && cp_op)
+					memcp_wait  <= 1;
 			endcase
 
 			if(~cp_op) begin
@@ -1987,38 +2086,65 @@ always @(posedge clk_sys) begin
 					4: cfg[31:16] <= ioctl_dout;
 				endcase
 			end
+
+`else
+			case(ioctl_addr[3:0])
+				0: cp_idx <= ioctl_dout[7:0];
+				1: cp_op <= ~ioctl_dout[7];
+				2: cp_size[7:0]  <= ioctl_dout;
+				3: cp_size[15:8]  <= ioctl_dout;
+				4: cp_size[23:16]  <= ioctl_dout;
+				5: begin
+					cp_size[26:24] <= ioctl_dout[2:0];
+					cp_addr     <= cp_offset;
+					cp_end      <= cp_offset + {ioctl_dout[2:0], cp_size[23:0]};
+				end
+				6: if(ioctl_dout && cp_op)
+					memcp_wait  <= 1;
+			endcase
+
+			if(~cp_op) begin
+				case(ioctl_addr[3:0])
+					2: cfg[7:0]   <= ioctl_dout;
+					3: cfg[15:8]  <= ioctl_dout;
+					4: cfg[23:16] <= ioctl_dout;
+					5: cfg[31:24] <= ioctl_dout;
+				endcase
+			end
+`endif
 		end
 	end
-end
 
-reg [1:0] memcp_state = 0;
-always @(posedge CLK_96M) begin
-	case(memcp_state)
-		0: if(~memcp_wait) begin
+	case(state)
+		0:	if(~memcp_wait) begin
 				ddr_cpreq <= 0;
 				sdr_cpreq <= 0;
 				cur_off   <= 0;
 			end
-			else if((~sdr2_en && ~sdr_pri_cpsel) || (cur_off >= cp_size)) memcp_ack <= memcp_req;
+			else if((~sdr2_en && ~sdr_pri_cpsel) || (cur_off >= cp_size))
+				memcp_wait <= 0;
 			else begin
-				ddr_cpreq   <= 1;
-				memcp_state <= 1;
+				ddr_cpreq <= 1;
+				state     <= 1;
 			end
 
-		1: if(ddr_cpbusy) ddr_cpreq <= 0;
+		1:	if(ddr_cpbusy)
+				ddr_cpreq <= 0;
 			else if(~ddr_cpreq & ~ddr_cpbusy) begin
-				sdr_cpreq   <= 1;
-				memcp_state <= 2;
+				sdr_cpreq <= 1;
+				state <= 2;
 			end
 
-		2: if(sdr_cpbusy) sdr_cpreq <= 0;
+		2:	if(sdr_cpbusy)
+				sdr_cpreq <= 0;
 			else if(~sdr_cpreq & ~sdr_cpbusy) begin
-				cur_off     <= cur_off + 27'd1024;
-				memcp_state <= 0;
+				cur_off <= cur_off + 27'd1024;
+				state <= 0;
 			end
 	endcase
 
-	if(~memcp_wait) memcp_state <= 0;
+	if(~memcp_wait)
+		state <= 0;
 end
 
 wire [7:0] YM2610_DOUT;
