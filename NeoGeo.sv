@@ -293,7 +293,7 @@ localparam CONF_STR = {
 	"O12,System Type,Console(AES),Arcade(MVS),CD,CDZ;",
 `elsif MVS_ARCADE_LOAD
 `else
-	"O12,System Type,Console(AES),Arcade(MVS);"
+	"O12,System Type,Console(AES),Arcade(MVS);",
 `endif
 
 	// Page 1 - System Settings
@@ -456,7 +456,7 @@ end
 // MiSTer OSD jumps around. Provide an indication for devs that a watchdog reset happened ?
 
 reg [14:0] TRASH_ADDR;
-reg SYSTEM_TYPE; //, SYSTEM_CD_TYPE;
+reg SYSTEM_TYPE, SYSTEM_CD_TYPE;
 
 reg nRESET;
 always @(posedge CLK_48M) begin
@@ -2065,6 +2065,8 @@ reg memcp_ack = 0;
 wire memcp_wait = (memcp_req != memcp_ack);
 
 always @(posedge clk_sys) begin
+	reg [1:0] state = 0;
+
 	if(ioctl_download && ioctl_index == INDEX_MEMCP) begin
 		if(ioctl_wr) begin
 `ifndef MVS_ARCADE_LOAD
@@ -2077,7 +2079,7 @@ always @(posedge clk_sys) begin
 					cp_end      <= cp_offset + {ioctl_dout[10:0], cp_size[15:0]};
 				end
 				6: if(ioctl_dout && cp_op)
-					memcp_wait  <= 1;
+					memcp_req <= ~memcp_req;
 			endcase
 
 			if(~cp_op) begin
@@ -2100,7 +2102,7 @@ always @(posedge clk_sys) begin
 					cp_end      <= cp_offset + {ioctl_dout[2:0], cp_size[23:0]};
 				end
 				6: if(ioctl_dout && cp_op)
-					memcp_wait  <= 1;
+					memcp_req <= ~memcp_req;
 			endcase
 
 			if(~cp_op) begin
@@ -2122,7 +2124,7 @@ always @(posedge clk_sys) begin
 				cur_off   <= 0;
 			end
 			else if((~sdr2_en && ~sdr_pri_cpsel) || (cur_off >= cp_size))
-				memcp_wait <= 0;
+				memcp_ack <= memcp_req;
 			else begin
 				ddr_cpreq <= 1;
 				state     <= 1;
