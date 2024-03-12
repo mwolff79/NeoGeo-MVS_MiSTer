@@ -562,7 +562,7 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(WIDE_IOCTL), .VDNUM(2)) hps_io
 	.ps2_key(ps2_key),
 
 	.status(status),				// status read (64 bits)
-	.status_menumask({status[22], 9'd0, en216p, bk_autosave | ~bk_pending, ~dbg_menu,~SYSTEM_MVS,1'b0,SYSTEM_CDx}),
+	.status_menumask({status[22], 8'd0, pause_mode, en216p, bk_autosave | ~bk_pending, ~dbg_menu,~SYSTEM_MVS,~SYSTEM_CDx,SYSTEM_CDx}),
 
 	.RTC(rtc),
 	.sdram_sz(sdram_sz),
@@ -1675,12 +1675,15 @@ neo_e0 E0(
 	.CDA(CDA)
 );
 
+wire pause_mode = ~status[43];
+wire pause = pause_mode ? OSD_STATUS : status[9];
+
 neo_f0 F0(
 	.CLK(CLK_48M),
 	.nRESET(nRESET),
 	.nDIPRD0(nDIPRD0), .nDIPRD1(nDIPRD1),
 	.nBITW0(nBITW0), .nBITWD0(nBITWD0),
-	.DIPSW({~status[9:8], 5'b11111, ~status[7]}),
+	.DIPSW({~pause, ~status[9:8], 5'b11111, ~status[7]}),
 	.COIN1(~joystick_0[10]), .COIN2(~joystick_1[10]),
 	.M68K_ADDR(M68K_ADDR[7:4]),
 	.M68K_DATA(M68K_DATA[7:0]),
@@ -2278,31 +2281,41 @@ always @(posedge CLK_VIDEO) begin
 	end
 end
 
-//Re-create VSync as original one is barely equals to VBlank
+//Re-create VSync as original one barely equals to VBlank
 reg VSync;
-reg RFSH;
+wire [8:0] v_offset = {{6{status[51]}},status[50:48]};
+wire [8:0] h_offset = {{6{status[47]}},status[46:44]};
 always @(posedge CLK_VIDEO) begin
 	reg       old_hs;
 	reg       old_vbl;
 	reg [2:0] vbl;
 	reg [7:0] vblcnt, vspos, rfsh_cnt;
-	
+	reg [8:0] hspos, hsend, hwidth;
 	if(ce_pix) begin
 		old_hs <= HSync;
+		hspos <= hspos + 1'b1;
+		if(old_hs & ~HSync)
+			hsend <= hspos;
 		if(~old_hs & HSync) begin
+			hwidth <= hspos;
+			hspos <= 0;
 			old_vbl <= nBNKB;
 			
 			if(~nBNKB) vblcnt <= vblcnt+1'd1;
 			if(old_vbl & ~nBNKB) vblcnt <= 0;
 			if(~old_vbl & nBNKB) begin
-				vspos <= (vblcnt>>1) - 8'd7;
+				vspos <= (vblcnt>>1) - 8'd7 + v_offset;
 				rfsh_cnt <= vblcnt-2'd2;
 			end
 
 			{VSync,vbl} <= {vbl,1'b0};
 			if(vblcnt == vspos) {VSync,vbl} <= '1;
 		end
-		
+		if (hspos == h_offset || hspos == hwidth + h_offset)
+			HSync_adjusted <= 1'b1;
+		else if (hspos == hsend + h_offset)
+			HSync_adjusted <= 1'b0;
+
 		RFSH <= (vblcnt < rfsh_cnt);
 	end
 end
@@ -2331,7 +2344,7 @@ video_cleaner video_cleaner
 	.G(~SHADOW ? G8 : {1'b0, G8[7:1]}),
 	.B(~SHADOW ? B8 : {1'b0, B8[7:1]}),
 
-	.HSync(HSync),
+	.HSync(HSync_adjusted),
 	.VSync(VSync),
 	.HBlank(HBlank[0]),
 	.VBlank(~nBNKB),
