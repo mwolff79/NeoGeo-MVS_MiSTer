@@ -467,11 +467,14 @@ always @(posedge CLK_48M) begin
 	if(CLK_EN_24M_N && ~&TRASH_ADDR) TRASH_ADDR <= TRASH_ADDR + 1'b1;
 
 	if (status[0] | status[14] | buttons[1] | bk_loading | RESET) begin
-		TRASH_ADDR <= 0;
 `ifndef MVS_ARCADE_LOAD
+		TRASH_ADDR <= 0;
 		SYSTEM_TYPE <= status[1];	// Latch the system type on reset
 `else
 		SYSTEM_TYPE <= 'd1;
+		// Ugly but delays reset in MRA mitigating issue with sound initialization
+		// at the start on some titles (like twinspri, mslugx etc.)
+		TRASH_ADDR <= 15'h7f00;
 `endif
 //		SYSTEM_CD_TYPE <= status[2];
 	end
